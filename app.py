@@ -14,6 +14,39 @@ from typing import Optional, Dict
 from dataclasses import dataclass
 from datetime import datetime
 
+# Configuration des logs avec emojis pour la console et le fichier
+LOG_PATH = "/app/logs/iptv-merger.log"
+
+
+def setup_logging():
+    """Configure le système de logging avec sortie fichier et console"""
+    # Création du dossier de logs s'il n'existe pas
+    os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
+
+    # Format commun pour tous les handlers
+    log_format = "%(asctime)s - %(levelname)s - %(message)s"
+
+    # Configuration de base
+    logging.basicConfig(level=logging.INFO)
+    root_logger = logging.getLogger()
+
+    # Suppression des handlers existants
+    root_logger.handlers = []
+
+    # Handler pour la console
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(logging.Formatter(log_format))
+    root_logger.addHandler(console_handler)
+
+    # Handler pour le fichier
+    file_handler = logging.FileHandler(LOG_PATH)
+    file_handler.setFormatter(logging.Formatter(log_format))
+    root_logger.addHandler(file_handler)
+
+    logger = logging.getLogger(__name__)
+    logger.info("🚀 Initialisation du système de logging")
+    logger.info(f"📝 Les logs sont écrits dans: {LOG_PATH}")
+
 
 @dataclass
 class HashInfo:
@@ -442,8 +475,11 @@ def serve_cache(filename):
         return "Fichier non trouvé", 404
 
 
+# Appel de la configuration au démarrage
 if __name__ == "__main__":
+    setup_logging()
     logger.info("🌐 Lancement du serveur Flask...")
     app.run(host="0.0.0.0", port=5000)
 else:
+    setup_logging()
     init_app()
