@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  iptv-merger:
+    build: .
+    container_name: iptv-merger
+    environment:
+      - TZ=${TZ}
+      - PLAYLIST_URL=${PLAYLIST_URL}
+      - LOCAL_IP=${LOCAL_IP}
+      - CUSTOM_STREAMS=${CUSTOM_STREAMS}
+    ports:
+      - "${PORT}:5000"
+    volumes:
+      - ./cache:/app/cache
+    restart: unless-stopped
