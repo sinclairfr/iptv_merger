@@ -18,6 +18,15 @@ Le projet est conçu pour être déployé via Docker et inclut une gestion avanc
 
 ---
 
+## 🔄 Gestion des mises à jour des playlists
+Le premier fichier M3U défini dans la variable `PLAYLIST_URL` doit être la playlist principale de votre fournisseur IPTV. Cette playlist est mise à jour uniquement toutes les 24 heures afin d'éviter des requêtes excessives. 
+
+Les autres fichiers M3U listés après le premier sont mis à jour à chaque exécution du service ou selon la valeur de `CACHE_DURATION_MINUTES`. Ces fichiers peuvent être des flux supplémentaires, des fichiers M3U locaux ou des playlists personnalisées.
+
+De plus, `CUSTOM_STREAMS` est utilisé pour ajouter des flux IPTV spécifiques sous format M3U8. Ceux-ci peuvent être des flux en direct issus de caméras locales, de serveurs privés ou d'autres sources externes.
+
+---
+
 ## 🛠️ Déploiement avec Docker
 
 ### **1️⃣ Installation de Docker (si non installé)**
@@ -112,4 +121,5 @@ Ce projet est sous licence MIT. Vous êtes libre de l'utiliser, le modifier et l
 
 ---
 
-🚀 **Profitez de votre IPTV sans contraintes !**
+🚀 **Profitez de votre IPTV sans tracas !**
+
