@@ -163,12 +163,14 @@ CACHE_DURATION_MINUTES = int(os.getenv("CACHE_DURATION_MINUTES", "10"))
 MAX_TIMEOUT = int(
     os.getenv("MAX_TIMEOUT", "300")
 )  # Timeout pour les gros fichiers IPTV
+# Ajout dans les variables d'environnement
+CHANNEL_GROUP_NAME = os.getenv("CHANNEL_GROUP_NAME", "MEDO_GROUP")
+MAIN_PLAYLIST_TIMEOUT_HOURS = int(os.getenv("MAIN_PLAYLIST_TIMEOUT_HOURS", "24"))
 
 
 # Fonction pour récupérer `MAX_CHANNELS` dynamiquement
 def get_max_channels():
     return int(os.getenv("MAX_CHANNELS", "100000"))  # Nombre max de chaînes fusionnées
-
 
 # Fonction pour récupérer le hash d'un fichier
 def get_file_hash(filename):
@@ -192,9 +194,9 @@ def can_fetch_externe1():
     if os.path.exists(EXTERNAL1_LAST_FETCH):
         with open(EXTERNAL1_LAST_FETCH, "r") as f:
             last_fetch_time = datetime.fromisoformat(f.read().strip())
-        return datetime.now() - last_fetch_time > timedelta(hours=24)
+        # Utiliser la nouvelle variable MAIN_PLAYLIST_TIMEOUT_HOURS au lieu de la valeur codée en dur "24"
+        return datetime.now() - last_fetch_time > timedelta(hours=MAIN_PLAYLIST_TIMEOUT_HOURS)
     return True
-
 
 # Mise à jour de la dernière récupération de externe1
 def update_externe1_fetch_time():
@@ -290,10 +292,6 @@ def update_external_hashes():
                 f.write(current_hash)
 
 
-# Ajout dans les variables d'environnement
-CHANNEL_GROUP_NAME = os.getenv("CHANNEL_GROUP_NAME", "MEDO_GROUP")
-
-
 def process_playlist_file(
     file_path, base_content, max_channels, total_channels, is_externe1=False
 ):
@@ -338,7 +336,6 @@ def process_playlist_file(
 
     return base_content, channel_count, total_channels
 
-
 def fetch_playlists():
     os.makedirs(CACHE_DIRECTORY, exist_ok=True)
     max_channels = get_max_channels()
@@ -348,6 +345,9 @@ def fetch_playlists():
         or has_max_channels_changed()
         or has_external_changed()
     )
+    
+    # On nettoie d'abord les fichiers de cache qui ne correspondent plus à des URLs actives
+    clean_obsolete_cache_files()
 
     # Téléchargement des playlists externes
     for index, url in enumerate(PLAYLIST_URLS, start=1):
@@ -358,7 +358,7 @@ def fetch_playlists():
             should_download = can_fetch_externe1()
             if not should_download:
                 logger.info(
-                    "⏳ externe1 ne sera pas téléchargée (dernière mise à jour < 24h)"
+                    f"⏳ externe1 ne sera pas téléchargée (dernière mise à jour <{MAIN_PLAYLIST_TIMEOUT_HOURS} heure(s))"
                 )
         else:  # Pour les autres fichiers
             should_download = True
@@ -390,7 +390,7 @@ def fetch_playlists():
         base_content = "#EXTM3U\n\n"
         total_channels = 0
 
-        # Traitement des playlists en cache
+        # Traitement des playlists en cache - UNIQUEMENT celles qui correspondent à des URLs actives
         for index, _ in enumerate(PLAYLIST_URLS, start=1):
             cache_file = f"{CACHE_DIRECTORY}/externe{index}.m3u"
             if os.path.exists(cache_file):
@@ -442,6 +442,47 @@ def fetch_playlists():
         else:
             logger.error("❌ Aucune chaîne à fusionner !")
 
+
+def clean_obsolete_cache_files():
+    """Nettoie les fichiers de cache qui ne correspondent plus à des URLs actives"""
+    logger.info("🧹 Vérification des fichiers de cache obsolètes...")
+    
+    # On parcourt tous les fichiers de cache potentiels
+    import glob
+    cache_files = glob.glob(f"{CACHE_DIRECTORY}/externe*.m3u")
+    
+    # On extrait les numéros d'index des fichiers
+    cache_indices = []
+    for file_path in cache_files:
+        filename = os.path.basename(file_path)
+        try:
+            # Extrait le numéro entre "externe" et ".m3u"
+            index = int(filename.replace("externe", "").replace(".m3u", ""))
+            cache_indices.append(index)
+        except ValueError:
+            continue
+    
+    # Le nombre max d'indices valides est la longueur de PLAYLIST_URLS
+    max_valid_index = len(PLAYLIST_URLS)
+    
+    # Supprime les fichiers ayant un index > max_valid_index
+    for index in cache_indices:
+        if index > max_valid_index:
+            cache_file = f"{CACHE_DIRECTORY}/externe{index}.m3u"
+            hash_file = f"{CACHE_DIRECTORY}/externe{index}.hash"
+            
+            try:
+                if os.path.exists(cache_file):
+                    os.remove(cache_file)
+                    logger.info(f"🗑️ Fichier cache obsolète supprimé: {cache_file}")
+                
+                if os.path.exists(hash_file):
+                    os.remove(hash_file)
+                    logger.info(f"🗑️ Fichier hash obsolète supprimé: {hash_file}")
+            except Exception as e:
+                logger.error(f"❌ Erreur lors de la suppression de fichiers obsolètes: {str(e)}")
+    
+    logger.info("✅ Nettoyage des fichiers de cache terminé")
 
 @app.route("/playlist.m3u")
 def serve_playlist():
